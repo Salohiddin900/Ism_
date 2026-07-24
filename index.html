@@ -4,9 +4,598 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vote App</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap');
+    </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+    <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+const PEOPLE_KEY = "people-list";
+const SESSION_KEY = "my-session";
+
+const COLORS = {
+  bg: "#12121C",
+  surface: "#1C1C2A",
+  surfaceAlt: "#242436",
+  border: "#33334A",
+  text: "#F2F0EA",
+  textMuted: "#9A97AE",
+  accent: "#3DDC97",
+  accentDim: "#245A45",
+  like: "#3DDC97",
+  dislike: "#FB6B7A",
+};
+
+const AVATAR_PALETTE = ["#F59E0B", "#3DDC97", "#5B9CF6", "#F472B6", "#A78BFA", "#FB6B7A", "#4ADE80"];
+
+function initials(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function avatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function Avatar({ name, photo, size = 40 }) {
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          objectFit: "cover",
+          border: `2px solid ${COLORS.border}`,
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: avatarColor(name || "?"),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 700,
+        fontSize: size * 0.38,
+        color: "#12121C",
+        flexShrink: 0,
+      }}
+    >
+      {name ? initials(name) : "?"}
+    </div>
+  );
+}
+
+function Navbar({ name, photo, stage, setStage, search, setSearch }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "12px 20px",
+        background: COLORS.surface,
+        borderBottom: `1px solid ${COLORS.border}`,
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+      }}
+    >
+      <div
+        onClick={() => setStage("profile")}
+        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+        title="Profilni tahrirlash"
+      >
+        <Avatar name={name} photo={photo} size={34} />
+        <span style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{name || "Mehmon"}</span>
+      </div>
+
+      {stage === "home" && (
+        <div style={{ flex: 1, maxWidth: 420, margin: "0 auto" }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Qidirish..."
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 999,
+              padding: "8px 16px",
+              color: COLORS.text,
+              fontSize: 14,
+              outline: "none",
+            }}
+          />
+        </div>
+      )}
+
+      <div style={{ marginLeft: stage === "home" ? 0 : "auto" }}>
+        <button
+          onClick={() => setStage("home")}
+          style={{
+            background: stage === "home" ? COLORS.accentDim : "transparent",
+            color: stage === "home" ? COLORS.accent : COLORS.textMuted,
+            border: `1px solid ${stage === "home" ? COLORS.accent : COLORS.border}`,
+            borderRadius: 999,
+            padding: "7px 18px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Home
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NameScreen({ name, setName, onContinue }) {
+  const ready = name.trim().length > 0;
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: COLORS.bg,
+        fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: 340,
+          maxWidth: "90vw",
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 20,
+          padding: "36px 28px",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 13, letterSpacing: 2, color: COLORS.textMuted, marginBottom: 6 }}>
+          BOSHLASH
+        </div>
+        <h1 style={{ color: COLORS.text, fontSize: 24, margin: "0 0 22px" }}>Ismingiz nima?</h1>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && ready && onContinue()}
+          placeholder="Ism Familiya"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            color: COLORS.text,
+            fontSize: 15,
+            outline: "none",
+            marginBottom: 20,
+          }}
+        />
+        <button
+          onClick={() => ready && onContinue()}
+          style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 12,
+            padding: "13px 0",
+            fontSize: 15,
+            fontWeight: 700,
+            transition: "all .2s ease",
+            cursor: ready ? "pointer" : "not-allowed",
+            background: ready ? COLORS.accent : "#3A3A4E",
+            color: ready ? "#0C1A14" : COLORS.textMuted,
+            filter: ready ? "none" : "blur(1.2px)",
+            opacity: ready ? 1 : 0.6,
+            pointerEvents: ready ? "auto" : "none",
+          }}
+        >
+          Davom etish
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProfileScreen({ name, photo, setPhoto, setStage, onGoHome }) {
+  const fileRef = useRef(null);
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPhoto(reader.result);
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "'Space Grotesk','Inter',sans-serif" }}>
+      <Navbar name={name} photo={photo} stage="profile" setStage={setStage} search="" setSearch={() => {}} />
+      <div style={{ display: "flex", justifyContent: "center", padding: "60px 20px" }}>
+        <div
+          style={{
+            width: 360,
+            maxWidth: "90vw",
+            background: COLORS.surface,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 20,
+            padding: "32px 26px",
+            textAlign: "center",
+          }}
+        >
+          <h2 style={{ color: COLORS.text, margin: "0 0 4px", fontSize: 20 }}>Profil rasmi</h2>
+          <p style={{ color: COLORS.textMuted, fontSize: 13, margin: "0 0 22px" }}>
+            Rasm ixtiyoriy — istasangiz keyinroq ham qo'shishingiz mumkin.
+          </p>
+
+          <div
+            onClick={() => fileRef.current.click()}
+            style={{
+              width: 140,
+              height: 140,
+              borderRadius: "50%",
+              margin: "0 auto 20px",
+              border: `2px dashed ${COLORS.border}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              overflow: "hidden",
+              background: COLORS.surfaceAlt,
+            }}
+          >
+            {photo ? (
+              <img src={photo} alt="profil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ color: COLORS.textMuted, fontSize: 13, padding: 8 }}>Rasm yuklang</span>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+
+          <button
+            onClick={() => fileRef.current.click()}
+            style={{
+              background: "transparent",
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text,
+              borderRadius: 10,
+              padding: "9px 16px",
+              fontSize: 13,
+              cursor: "pointer",
+              marginBottom: 18,
+            }}
+          >
+            {photo ? "Rasmni almashtirish" : "Rasm tanlash"}
+          </button>
+
+          <button
+            onClick={onGoHome}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 12,
+              padding: "13px 0",
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: "pointer",
+              background: COLORS.accent,
+              color: "#0C1A14",
+            }}
+          >
+            Home'ga o'tish
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonModal({ person, myName, onClose, onVote }) {
+  if (!person) return null;
+  const isSelf = person.name.trim().toLowerCase() === myName.trim().toLowerCase();
+  const iLiked = person.likes.includes(myName.trim());
+  const iDisliked = person.dislikes.includes(myName.trim());
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(8,8,14,0.72)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 380,
+          maxWidth: "100%",
+          maxHeight: "88vh",
+          overflowY: "auto",
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 20,
+          padding: 22,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", color: COLORS.textMuted, fontSize: 18, cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+          <Avatar name={person.name} photo={person.photo} size={140} />
+        </div>
+        <h3 style={{ textAlign: "center", color: COLORS.text, margin: "0 0 18px" }}>{person.name}</h3>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <button
+            disabled={isSelf}
+            onClick={() => onVote(person.id, "dislike")}
+            style={{
+              flex: 1,
+              marginRight: 8,
+              border: `1px solid ${iDisliked ? COLORS.dislike : COLORS.border}`,
+              background: iDisliked ? "rgba(251,107,122,0.15)" : "transparent",
+              borderRadius: 12,
+              padding: "10px 0",
+              fontSize: 20,
+              cursor: isSelf ? "not-allowed" : "pointer",
+              opacity: isSelf ? 0.4 : 1,
+            }}
+          >
+            👎🏻 <span style={{ fontSize: 13, color: COLORS.textMuted, marginLeft: 4 }}>{person.dislikes.length}</span>
+          </button>
+          <button
+            disabled={isSelf}
+            onClick={() => onVote(person.id, "like")}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              border: `1px solid ${iLiked ? COLORS.like : COLORS.border}`,
+              background: iLiked ? "rgba(61,220,151,0.15)" : "transparent",
+              borderRadius: 12,
+              padding: "10px 0",
+              fontSize: 20,
+              cursor: isSelf ? "not-allowed" : "pointer",
+              opacity: isSelf ? 0.4 : 1,
+            }}
+          >
+            <span style={{ fontSize: 13, color: COLORS.textMuted, marginRight: 4 }}>{person.likes.length}</span> 👍🏻
+          </button>
+        </div>
+        {isSelf && (
+          <p style={{ textAlign: "center", color: COLORS.textMuted, fontSize: 12, marginTop: -10, marginBottom: 14 }}>
+            O'zingizga ovoz bera olmaysiz
+          </p>
+        )}
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left", color: COLORS.like, borderBottom: `1px solid ${COLORS.border}`, padding: "6px 4px" }}>
+                👍 Yoqtirganlar
+              </th>
+              <th style={{ textAlign: "left", color: COLORS.dislike, borderBottom: `1px solid ${COLORS.border}`, padding: "6px 4px" }}>
+                👎 Yoqtirmaganlar
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: Math.max(person.likes.length, person.dislikes.length, 1) }).map((_, i) => (
+              <tr key={i}>
+                <td style={{ padding: "5px 4px", color: COLORS.text }}>{person.likes[i] || ""}</td>
+                <td style={{ padding: "5px 4px", color: COLORS.text }}>{person.dislikes[i] || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function HomeScreen({ name, photo, people, search, setSearch, setStage, onVote }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const filtered = people.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const selected = people.find((p) => p.id === selectedId) || null;
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "'Space Grotesk','Inter',sans-serif" }}>
+      <Navbar name={name} photo={photo} stage="home" setStage={setStage} search={search} setSearch={setSearch} />
+      <div style={{ padding: "26px 20px", maxWidth: 900, margin: "0 auto" }}>
+        {filtered.length === 0 && (
+          <p style={{ color: COLORS.textMuted, textAlign: "center", marginTop: 60 }}>Hech kim topilmadi.</p>
+        )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+            gap: 18,
+          }}
+        >
+          {filtered.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => setSelectedId(p.id)}
+              style={{
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 16,
+                padding: "18px 10px",
+                textAlign: "center",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                <Avatar name={p.name} photo={p.photo} size={68} />
+              </div>
+              <div style={{ color: COLORS.text, fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{p.name}</div>
+              <div style={{ color: COLORS.textMuted, fontSize: 11 }}>
+                👍 {p.likes.length} &nbsp; 👎 {p.dislikes.length}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <PersonModal person={selected} myName={name} onClose={() => setSelectedId(null)} onVote={onVote} />
+    </div>
+  );
+}
+
+function App() {
+  const [stage, setStage] = useState("name");
+  const [name, setName] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [people, setPeople] = useState([]);
+  const [search, setSearch] = useState("");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const sess = localStorage.getItem(SESSION_KEY);
+      if (sess) {
+        const s = JSON.parse(sess);
+        if (s.name) {
+          setName(s.name);
+          setPhoto(s.photo || null);
+          setStage("home");
+        }
+      }
+    } catch (e) {}
+    try {
+      const p = localStorage.getItem(PEOPLE_KEY);
+      if (p) setPeople(JSON.parse(p));
+    } catch (e) {}
+    setReady(true);
+  }, []);
+
+  function savePeople(next) {
+    setPeople(next);
+    try {
+      localStorage.setItem(PEOPLE_KEY, JSON.stringify(next));
+    } catch (e) {}
+  }
+
+  function saveSession(n, ph) {
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ name: n, photo: ph }));
+    } catch (e) {}
+  }
+
+  function handleGoHome() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    let next = [...people];
+    const idx = next.findIndex((p) => p.name.toLowerCase() === trimmed.toLowerCase());
+    if (idx >= 0) {
+      next[idx] = { ...next[idx], photo: photo || next[idx].photo };
+    } else {
+      next.push({ id: "u-" + Date.now(), name: trimmed, photo: photo || null, likes: [], dislikes: [] });
+    }
+    savePeople(next);
+    saveSession(trimmed, photo);
+    setStage("home");
+  }
+
+  function handleVote(personId, type) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const next = people.map((p) => {
+      if (p.id !== personId) return p;
+      let likes = p.likes.filter((n) => n !== trimmed);
+      let dislikes = p.dislikes.filter((n) => n !== trimmed);
+      if (type === "like" && !p.likes.includes(trimmed)) likes = [...likes, trimmed];
+      if (type === "dislike" && !p.dislikes.includes(trimmed)) dislikes = [...dislikes, trimmed];
+      return { ...p, likes, dislikes };
+    });
+    savePeople(next);
+  }
+
+  if (!ready) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: COLORS.bg,
+          color: COLORS.textMuted,
+          fontFamily: "'Space Grotesk','Inter',sans-serif",
+        }}
+      >
+        Yuklanmoqda...
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap');`}</style>
+      {stage === "name" && <NameScreen name={name} setName={setName} onContinue={() => setStage("profile")} />}
+      {stage === "profile" && (
+        <ProfileScreen name={name} photo={photo} setPhoto={setPhoto} setStage={setStage} onGoHome={handleGoHome} />
+      )}
+      {stage === "home" && (
+        <HomeScreen
+          name={name}
+          photo={photo}
+          people={people}
+          search={search}
+          setSearch={setSearch}
+          setStage={setStage}
+          onVote={handleVote}
+        />
+      )}
+    </>
+  );
+}
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
   </body>
 </html>
